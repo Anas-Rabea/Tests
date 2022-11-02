@@ -14,8 +14,8 @@ class DataQualityOperator(BaseOperator):
                  tables=[],
                  *args, **kwargs):
         super(DataQualityOperator, self).__init__(*args, **kwargs)
-        self.aws_credentials_id = aws_credentials_id,
-        self.redshift_conn_id = redshift_conn_id,
+        self.aws_credentials_id = aws_credentials_id
+        self.redshift_conn_id = redshift_conn_id
         self.tables = tables
 
     def execute(self, context):
