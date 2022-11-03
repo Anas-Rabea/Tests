@@ -2,8 +2,6 @@ from airflow.hooks.postgres_hook import PostgresHook
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
-
 class StageToRedshiftOperator(BaseOperator):
     ui_color = '#358140'
     template_fields = ("s3_key",)
@@ -13,10 +11,9 @@ class StageToRedshiftOperator(BaseOperator):
             ACCESS_KEY_ID '{}'
             SECRET_ACCESS_KEY '{}'
             REGION '{}'
-            {} 'auto' 
+            {} '{}' 
            
         """
-
     @apply_defaults
     def __init__(self,
                  redshift_conn_id="",
@@ -26,8 +23,8 @@ class StageToRedshiftOperator(BaseOperator):
                  s3_key="",
                  region="",
                  file_format="JSON",
+                 jsonpath = 'auto',
                  *args, **kwargs):
-
         super(StageToRedshiftOperator, self).__init__(*args, **kwargs)
         self.table = table
         self.redshift_conn_id = redshift_conn_id
@@ -36,8 +33,8 @@ class StageToRedshiftOperator(BaseOperator):
         self.region= region
         self.file_format = file_format
         self.aws_credentials_id = aws_credentials_id
+        self.jsonpath = jsonpath
        
-
     def execute(self, context):
         """
             description: Copy data from S3 buckets to redshift cluster into staging tables.
@@ -51,12 +48,9 @@ class StageToRedshiftOperator(BaseOperator):
         aws_hook = AwsHook(self.aws_credentials_id)
         credentials = aws_hook.get_credentials()
         redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-
         self.log.info("Clearing data from destination Redshift table")
         redshift.run("DELETE FROM {}".format(self.table))
-
         self.log.info("Copying data from S3 to Redshift")
-
         rendered_key = self.s3_key.format(**context)
         s3_path = "s3://{}/{}".format(self.s3_bucket, rendered_key)
         formatted_sql = StageToRedshiftOperator.copy_sql.format(
@@ -66,7 +60,7 @@ class StageToRedshiftOperator(BaseOperator):
             credentials.secret_key,
             self.region,
             self.file_format,
+            self.jsonpath,
         )
         redshift.run(formatted_sql)
-
         self.log.info(f"Success: Copying {self.table} from S3 to Redshift")
